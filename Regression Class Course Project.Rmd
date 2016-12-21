@@ -1,0 +1,87 @@
+---
+title: "Regression Course Project"
+author: "Gavin Leeper"
+date: "December 1, 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Executive Summary
+I've completed some simple linear regression analysis on the mtcars dataset. After fitting a few different models to the data, I ultimately found that manual transmission vehicles in the data would on average get 7.245 more miles to the gallon than their automatic counterparts. This relationship was significant at th .02% level, making it rather strong. I examined the residuals and concluded that there was no discernable pattern to the error terms except a bit of a change in variance. 
+
+## Preliminary Analysis
+
+Let's first load in the "mtcars" dataset and check look at the distributions of the variables we're curious about.
+```{r,cache=TRUE}
+library(ggplot2)
+data(mtcars)
+str(mtcars)
+qplot(mtcars$mpg)
+qplot(mtcars$am)
+qplot(am,mpg,data=mtcars)
+```
+
+## Simple Linear Fit
+
+Now let's test some simple linear regression models to see if they reveal any relationship. We can start with predicting mpg using all the other available variables, and then pare down from there.
+
+```{r}
+fit1<-lm(mpg~., mtcars)
+summary(fit1)
+```
+
+Judging from the p value for the coefficient for the transmission variable ("am"), there seems to be no significant relationship between transmission type and mpg when all of these other variables are jointly considered. In fact, none of the variables have coefficients significant at the 5% level if we choose this model.
+
+Interestingly, if we take the intercept term out, we do get find a significant relationship between mpg and the quarter mile time in seconds (qsec)
+
+```{r}
+fit2<-lm(mpg~.-1, mtcars)
+summary(fit2)
+```
+
+We can next try the other extreme, in which we only try to predict mpg based on the transmission variable and an intercept term.Our resulting p values show a high significance for both the intercept term and the am term.
+```{r}
+library(ggplot2)
+fit3<-lm(mpg~am, mtcars)
+summary(fit3)
+g<-qplot(am,mpg,data=mtcars)
+g+geom_smooth(method="lm")
+```
+
+Given the significance of the intercept term, it seems like we're best off leaving it in our model, but let's check the model fitted with no intercept as well for completeness.
+
+```{r,cache=TRUE}
+library(ggplot2)
+fit4<-lm(mpg~am-1, mtcars)
+summary(fit4)
+g<-qplot(am,mpg,data=mtcars)
+g+geom_smooth(method="lm",formula=y~x-1)
+```
+
+It turns out that at least by measure of R squared, this model actually fits the data better. That said, it might not make practical sense because it forces our regression line through 0, which essentially predict that all automatic transmission cars have an mpg of 0. In fact, if we look at the predicted values of fit4, we see that all automatic tranmission cars get a mpg prediction of 0 and all manual transmission cars get 24.39.
+
+```{r}
+predict(fit4)
+```
+
+Of these two, I would go with fit3 due to its predictions being more logical. From this model, we can conclude that manual transmission cars have a mileage that is 7.245 mile per gallon greater than automatic transmission vehicles. As calculated in the associated p value, we can be confident in this conclusion to a .02% level of significance, which makes it quite strong.
+
+
+##Residual analysis
+
+We do see some heteroskedasticity here in that the variance of the residuals for manual transmission cars looks greater than the variance for automatic transmission cars, indeed, the low p value from the Breuch Pagan test suggest that there is significant heteroskedasticity here. However, since our x value here is non-continuous, it's challenging to confidently discern any pattern in the errors. 
+```{r}
+library(ggplot2)
+library(lmtest)
+
+qplot(mtcars$am,resid(fit3))
+
+var(resid(fit3)[mtcars$am==1])
+var(resid(fit3)[mtcars$am==0])
+
+bptest(fit3)
+```
+A more thorough analysis could try out different transormations of mpg as the predicted variable and see if this results in a less heteroskedastic regression.
